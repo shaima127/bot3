@@ -6,10 +6,10 @@ from config import settings
 supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
 
 def get_embedding(text: str) -> list:
-    \"\"\"
+    """
     تحويل النص إلى متجهات (Embedding) باستخدام HuggingFace.
     (يخفف الضغط عن الاستضافة بدلاً من تثبيت مكتبات الذكاء الاصطناعي الثقيلة محلياً)
-    \"\"\"
+    """
     model_url = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
     headers = {"Authorization": f"Bearer {settings.HUGGINGFACE_TOKEN}"}
     try:
@@ -21,10 +21,10 @@ def get_embedding(text: str) -> list:
         return []
 
 def retrieve_relevant_lesson(level: int, limit: int = 1) -> str:
-    \"\"\"
+    """
     البحث في الدروس المخزنة في Supabase باستخدام RAG (Vector Search)
     نبحث عن الدرس الذي يناسب مستوى الطالب.
-    \"\"\"
+    """
     # تجهيز النص المراد البحث عنه بناء على المستوى
     query = f"درس برمجة فلاتر Flutter مناسب للطالب في المستوى رقم {level}"
     query_embedding = get_embedding(query)
@@ -49,9 +49,9 @@ def retrieve_relevant_lesson(level: int, limit: int = 1) -> str:
     return ""
 
 def get_or_create_user(phone_number: str, name: str = "Student"):
-    \"\"\"
+    """
     يقوم بالبحث عن المستخدم، إن لم يجده يقوم بتسجيله.
-    \"\"\"
+    """
     response = supabase.table("students").select("*").eq("phone_number", phone_number).execute()
     
     if len(response.data) > 0:
