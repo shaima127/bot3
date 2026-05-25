@@ -6,9 +6,9 @@ from config import settings
 client = Groq(api_key=settings.GROQ_API_KEY)
 
 def generate_ai_response(prompt: str, system_prompt: str = "أنت معلم فلاتر (Flutter) خبير، تقوم بتعليم الطلاب باللغة العربية بأسلوب ممتع ومشجع."):
-    \"\"\"
+    """
     دالة موحدة للاتصال بالذكاء الاصطناعي
-    \"\"\"
+    """
     try:
         completion = client.chat.completions.create(
             model="llama3-70b-8192", # يمكنك تغييره بناءً على ما تفضله
