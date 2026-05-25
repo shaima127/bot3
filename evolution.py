@@ -2,9 +2,9 @@ import httpx
 from config import settings
 
 def send_whatsapp_message(remote_jid: str, text: str):
-    \"\"\"
+    """
     إرسال رسالة نصية عبر Evolution API
-    \"\"\"
+    """
     url = f"{settings.EVOLUTION_API_URL}/message/sendText/{settings.EVOLUTION_INSTANCE_NAME}"
     
     headers = {
