@@ -11,7 +11,7 @@ def generate_ai_response(prompt: str, system_prompt: str = "أنت معلم فل
     """
     try:
         completion = client.chat.completions.create(
-            model="llama3-70b-8192", # يمكنك تغييره بناءً على ما تفضله
+            model="llama-3.3-70b-versatile", # تم تحديث الموديل لأن القديم تم إيقافه من شركة Groq
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
