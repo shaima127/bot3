@@ -9,8 +9,13 @@ from ai_handler import (
 app = FastAPI(title="Flutter AI Tutor Bot")
 
 @app.post("/webhook")
+@app.post("/")
 async def evolution_webhook(request: Request):
     payload = await request.json()
+    print("====================================")
+    print("🔔 استلام Webhook من الواتساب:")
+    print(payload)
+    print("====================================")
     
     # التأكد من أن الحدث هو حدث استقبال رسالة
     event_type = payload.get("event")
