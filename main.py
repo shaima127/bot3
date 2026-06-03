@@ -92,7 +92,7 @@ def process_message(payload: dict):
         elif "نقاطي" in incoming_text:
              response_text = f"🌟 مجموع نقاطك: {points} نقطة!"
         else:
-            response_text = "اكتب 'درس' للحصول على درسك التالي، أو 'نقاطي' للتحقق من نقاطك."
+            response_text = generate_ai_response(f"الطالب قال: '{incoming_text}'. تفاعل معه ودردش بلطف، وفي النهاية ذكره بأنه يمكنه كتابة 'درس' لمواصلة دراسته أو 'نقاطي' لمعرفة رصيده.")
             
     elif current_state == "ready_for_quiz":
         if "اختبار" in incoming_text:
@@ -101,7 +101,7 @@ def process_message(payload: dict):
             # خدعة ذكية: احفظ السؤال نفسه داخل حالة الطالب في قاعدة البيانات حتى يتذكره البوت!
             update_user_state(phone_number, f"quiz_answering|{ai_question}")
         else:
-            response_text = "اكتب 'اختبار' لاختبار معلوماتك!"
+            response_text = generate_ai_response(f"الطالب قال: '{incoming_text}'. تفاعل معه باختصار ولطف، ثم شجعه بقوة وذكره بأن يكتب كلمة 'اختبار' لكي تبدأ تحدي الأسئلة معه.")
             
     elif current_state.startswith("quiz_answering"):
         # استخراج السؤال القديم الذي طرحه البوت سابقاً
@@ -122,7 +122,7 @@ def process_message(payload: dict):
              update_user_state(phone_number, "learning")
              
     else:
-        response_text = "مرحباً مجدداً! اكتب 'درس' للبدء."
+        response_text = generate_ai_response(f"الطالب قال: '{incoming_text}'. رحب به وتفاعل معه باختصار، وذكره بأنه يمكنه كتابة 'درس' في أي وقت للعودة إلى التعلم.")
 
     # إرسال الرسالة أخيراً لـ Evolution API
     send_whatsapp_message(remote_jid, response_text)
