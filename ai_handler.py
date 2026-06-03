@@ -5,7 +5,9 @@ from config import settings
 # تهيئة Groq كمولد للذكاء الاصطناعي
 client = Groq(api_key=settings.GROQ_API_KEY)
 
-def generate_ai_response(prompt: str, system_prompt: str = "أنت معلم فلاتر (Flutter) خبير، تقوم بتعليم الطلاب باللغة العربية بأسلوب ممتع ومشجع."):
+import re
+
+def generate_ai_response(prompt: str, system_prompt: str = "أنت معلم فلاتر (Flutter) خبير، تعليمك باللغة العربية ممتع ومشجع. أوامرك صارمة: أنت تجيب وتناقش فقط ما يخص Flutter و Dart. إذا سُئلت عن أي موضوع خارج هذا النطاق، اعتذر بلطف بالغ وأخبرهم أن تخصصك الوحيد هو تعليم Flutter."):
     """
     دالة موحدة للاتصال بالذكاء الاصطناعي
     """
@@ -22,7 +24,16 @@ def generate_ai_response(prompt: str, system_prompt: str = "أنت معلم فل
             stream=False,
             stop=None,
         )
-        return completion.choices[0].message.content
+        
+        raw_text = completion.choices[0].message.content
+        
+        # تنظيف الرموز الخاصة بالذكاء الاصطناعي (Markdown) لتتناسب مع خطوط الواتساب
+        # تحويل الخط العريض **كلمة** إلى *كلمة* الخاص بالواتساب
+        clean_text = re.sub(r'\*\*(.*?)\*\*', r'*\1*', raw_text)
+        # إزالة رموز العناوين ### أو ##
+        clean_text = re.sub(r'#{1,6}\s*', '', clean_text)
+        
+        return clean_text
     except Exception as e:
         print(f"Error from Groq AI: {e}")
         return "عذراً، أواجه مشكلة في التفكير حالياً. الرجاء المحاولة مرة أخرى."
