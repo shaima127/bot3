@@ -96,20 +96,29 @@ def process_message(payload: dict):
             
     elif current_state == "ready_for_quiz":
         if "اختبار" in incoming_text:
-            response_text = generate_ai_response("أعط الطالب سؤال اختيار من متعدد بناء على مستواه في Flutter. واطلب منه الرد بالحل.")
-            update_user_state(phone_number, "quiz_answering")
+            ai_question = generate_ai_response("أعط الطالب سؤال اختيار من متعدد واحد فقط لتقييم فهمه، واكتبه بصيغة مباشرة.")
+            response_text = ai_question
+            # خدعة ذكية: احفظ السؤال نفسه داخل حالة الطالب في قاعدة البيانات حتى يتذكره البوت!
+            update_user_state(phone_number, f"quiz_answering|{ai_question}")
         else:
             response_text = "اكتب 'اختبار' لاختبار معلوماتك!"
             
-    elif current_state == "quiz_answering":
-        ai_eval = generate_ai_response(f"الطالب ذو المستوى {level} جاوب على اختبار بـ '{incoming_text}'. هل إجابته صحيحة؟ إذا صحيحة امدحه واطلب منه كتابة 'درس' للانتقال. إذا خاطئة، اشرح له الخطأ بلطف واطلب منه إعادة المحاولة.")
+    elif current_state.startswith("quiz_answering"):
+        # استخراج السؤال القديم الذي طرحه البوت سابقاً
+        parts = current_state.split("|", 1)
+        last_question = parts[1] if len(parts) > 1 else "سؤال غير معروف"
         
+        # الآن الذكاء الاصطناعي يرى السؤال ويرى إجابة الطالب لتقييمه بشكل حقيقي
+        prompt = f"هذا هو السؤال الذي سألته للطالب: '{last_question}'\nوهذه إجابة الطالب: '{incoming_text}'.\nقم بتقييم إجابته كمعلم فلاتر، هل هي صحيحة أم خاطئة؟ إذا كانت صحيحة استخدم كلمة 'صحيح' أو 'ممتاز' في ردك وامدحه. وإذا كانت خاطئة اشرح له الجواب الصحيح بلطف."
+        
+        ai_eval = generate_ai_response(prompt)
         response_text = ai_eval
+        
         if "صحيح" in ai_eval or "أحسنت" in ai_eval or "ممتاز" in ai_eval:
              response_text += "\n\n🏆 لقد حصلت على 20 نقطة إضافية! اكتب 'درس' للانتقال للدرس التالي."
              update_user_state(phone_number, "learning", level=level+1, points_to_add=20)
         else:
-             response_text += "\n\nلا بأس يا بطل، المحاولة هي طريق النجاح! 💪"
+             response_text += "\n\nلا بأس يا بطل، المحاولة هي طريق النجاح! 💪 اكتب 'درس' لمراجعة معلوماتك."
              update_user_state(phone_number, "learning")
              
     else:
