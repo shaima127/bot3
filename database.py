@@ -5,46 +5,55 @@ from config import settings
 
 supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
 
+import httpx
+
 def get_embedding(text: str) -> list:
     """
-    تحويل النص إلى متجهات (Embedding) باستخدام HuggingFace.
-    (يخفف الضغط عن الاستضافة بدلاً من تثبيت مكتبات الذكاء الاصطناعي الثقيلة محلياً)
+    تحويل النص إلى متجهات (Embedding) لعمل RAG حقيقي.
+    نستخدم نموذجاً مجانياً ومفتوحاً من HuggingFace.
     """
     model_url = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
-    headers = {"Authorization": f"Bearer {settings.HUGGINGFACE_TOKEN}"}
+    
+    headers = {}
+    if hasattr(settings, "HUGGINGFACE_TOKEN") and settings.HUGGINGFACE_TOKEN:
+        headers["Authorization"] = f"Bearer {settings.HUGGINGFACE_TOKEN}"
+        
     try:
         response = httpx.post(model_url, headers=headers, json={"inputs": text}, timeout=10.0)
-        # HuggingFace يُرجع مصفوفة من المتجهات
-        return response.json()
+        result = response.json()
+        # تنسيق المتجهات
+        if isinstance(result, list) and len(result) > 0:
+            return result[0] if isinstance(result[0], list) else result
+        return []
     except Exception as e:
         print("Error getting embedding:", e)
         return []
 
 def retrieve_relevant_lesson(level: int, limit: int = 1) -> str:
     """
-    البحث في الدروس المخزنة في Supabase باستخدام RAG (Vector Search)
-    نبحث عن الدرس الذي يناسب مستوى الطالب.
+    تطبيق تقنية RAG الحقيقية للبحث (Vector Semantic Search) داخل قاعدة البيانات.
     """
-    # تجهيز النص المراد البحث عنه بناء على المستوى
     query = f"درس برمجة فلاتر Flutter مناسب للطالب في المستوى رقم {level}"
     query_embedding = get_embedding(query)
     
     if not query_embedding:
-        return ""
+        print("⚠️ لم نجد نظام Vectors (نقوم بالبحث العادي).")
+        response = supabase.table("lessons").select("content").eq("level", level).limit(limit).execute()
+        return response.data[0]['content'] if (response.data and len(response.data) > 0) else ""
     
-    # استدعاء دالة RPC من قاعدة بيانات Supabase (تحتاج إنشاءها لاحقاً في SQL)
     try:
+        # استدعاء معادلة المتجهات RAG من Supabase SQL
         response = supabase.rpc("match_lessons", {
             "query_embedding": query_embedding,
-            "match_threshold": 0.5, # قوة التطابق
+            "match_threshold": 0.1,    # للبحث عن الأقرب دائماً
             "match_count": limit,
-            "student_level": level # فلترة إضافية لمستوى الطالب إن أمكن
+            "student_level": level
         }).execute()
         
         if response.data and len(response.data) > 0:
-            return response.data[0]['content'] # إعادة نص الدرس من قاعدة البيانات
+            return response.data[0]['content'] 
     except Exception as e:
-        print("Error fetching from supabase vectors:", e)
+        print("Error with Supabase Vectors:", e)
         
     return ""
 
