@@ -1,9 +1,10 @@
 from fastapi import FastAPI, Request
 from database import get_or_create_user, update_user_state
-from evolution import send_whatsapp_message
+from evolution import send_whatsapp_message, get_media_base64
 from ai_handler import (
-    get_placement_test, get_flutter_lesson, 
-    correct_code_and_explain, logic_to_code, generate_ai_response
+    get_placement_test, get_flutter_lesson,
+    correct_code_and_explain, logic_to_code, generate_ai_response,
+    transcribe_audio
 )
 
 app = FastAPI(title="Flutter AI Tutor Bot")
@@ -43,9 +44,22 @@ def process_message(payload: dict):
     conversation = message_info.get("conversation")
     extended_msg = message_info.get("extendedTextMessage", {}).get("text")
     incoming_text = conversation or extended_msg
-    
+
+    # إذا لم يوجد نص، تحقق إذا كانت رسالة صوتية (ريكورد)
     if not incoming_text:
-        return
+        audio_msg = message_info.get("audioMessage")
+        if audio_msg:
+            print("🎤 رسالة صوتية — جاري التحويل إلى نص...")
+            # جلب الـ Base64 من Evolution API ثم تحويله لنص
+            base64_audio = get_media_base64(data.get("message", {}))
+            if base64_audio:
+                incoming_text = transcribe_audio(base64_audio)
+                print(f"📝 النص المستخرج من الصوت: {incoming_text}")
+            if not incoming_text:
+                send_whatsapp_message(remote_jid, "عذراً، لم أستطع فهم الرسالة الصوتية. جرب إعادة الإرسال أو اكتب رسالتك نصياً. 🎙️")
+                return
+        else:
+            return
         
     sender_name = data.get("pushName", "Student")
     phone_number = str(remote_jid).split("@")[0]
