@@ -6,8 +6,10 @@ from config import settings
 client = Groq(api_key=settings.GROQ_API_KEY)
 
 import re
+import tempfile
+import base64
 
-def generate_ai_response(prompt: str, system_prompt: str = "أنت معلم فلاتر (Flutter) خبير، تعليمك عربي وممتع. أوامرك صارمة: تجيب فقط بما يخص Flutter و Dart وتعتذر بلطف عن غيرها. وكمعلم ممتاز: حاول دائماً أن ترشح روابط لفيديوهات يوتيوب حقيقية وقنوات مشهورة (مثل قنوات فلاتر العربية أو الانجليزية) عند وضع الدروس لزيادة الفائدة."):
+def generate_ai_response(prompt: str, system_prompt: str = "أنت معلم فلاتر (Flutter) خبير، تعليمك عربي وممتع. أوامرك صارمة: تجيب فقط بما يخص Flutter و Dart وتعتذر بلطف عن غيرها. وكمعلم ممتاز: حاول دائماً أن ترشح روابط لفيديوهات يوتيوب حقيقية وقنوات مشهورة (مثل قنوات فلاتر العربية أو الانجليزية) عند وضع الدروس لزيادة الفائدة. ملاحظة قوية: لا تكرر الترحيب بالطالب أبداً (لا تقل أهلاً ومرحباً في كل مرة)، اجعل ردودك مباشرة، وتفاعل معه بلطف وبدون رسميات زائدة."):
     """
     دالة موحدة للاتصال بالذكاء الاصطناعي
     """
@@ -37,6 +39,31 @@ def generate_ai_response(prompt: str, system_prompt: str = "أنت معلم فل
     except Exception as e:
         print(f"Error from Groq AI: {e}")
         return "عذراً، أواجه مشكلة في التفكير حالياً. الرجاء المحاولة مرة أخرى."
+
+def transcribe_audio(base64_audio: str):
+    """
+    تحويل الصوت إلى نص باستخدام Groq Whisper
+    """
+    try:
+        audio_data = base64.b64decode(base64_audio)
+        
+        # حفظ الملف مؤقتاً بصيغة ogg
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".ogg") as temp_audio:
+            temp_audio.write(audio_data)
+            temp_file_path = temp_audio.name
+            
+        with open(temp_file_path, "rb") as file:
+            transcription = client.audio.transcriptions.create(
+                file=(temp_file_path, file.read()),
+                model="whisper-large-v3",
+                response_format="verbose_json",
+            )
+        
+        os.remove(temp_file_path)
+        return transcription.text
+    except Exception as e:
+        print(f"Error transcribing audio: {e}")
+        return ""
 
 def get_placement_test():
     prompt = "اكتب سؤالاً واحداً فقط بلغة عربية لتحديد مستوى الطالب في Flutter (اختيارات متعددة)، بحيث يمكنني تحديد مستواه المبتدئ، المتوسط، أو المتقدم."
