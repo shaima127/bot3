@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request, BackgroundTasks
-from database import get_or_create_user, update_user_state, save_last_lesson
+from database import get_or_create_user, update_user_state, save_last_lesson, get_next_lesson_number, increment_lessons_completed
 from evolution import send_whatsapp_message, get_media_base64
 from ai_handler import (
     get_flutter_lesson,
@@ -168,9 +168,13 @@ def process_message(payload: dict):
     # ══ حالة التعلم ══
     elif current_state == "learning":
         if "درس" in incoming_text:
-            lesson_content = get_flutter_lesson(level)
-            response_text = lesson_content
+            # حساب رقم الدرس التالي للطالب
+            next_lesson = get_next_lesson_number(phone_number)
+            lesson_content = get_flutter_lesson(level, lesson_number=next_lesson)
+            response_text = f"📖 *الدرس رقم {next_lesson}*\n\n"
+            response_text += lesson_content
             response_text += "\n\n⭐ (كسبت 5 نقاط)\nاكتب *اختبار* عندما تكون جاهزاً للتحدي!"
+            increment_lessons_completed(phone_number)
             update_user_state(phone_number, "ready_for_quiz", points_to_add=5, last_lesson=lesson_content[:300])
         elif "نقاطي" in incoming_text:
             response_text = f"🌟 رصيدك الحالي: *{points}* نقطة!"
