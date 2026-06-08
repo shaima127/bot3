@@ -29,33 +29,75 @@ def get_embedding(text: str) -> list:
         print("Error getting embedding:", e)
         return []
 
-def retrieve_relevant_lesson(level: int, limit: int = 1) -> str:
+def retrieve_relevant_lesson(level: int, lesson_number: int = None, limit: int = 1) -> str:
     """
     تطبيق تقنية RAG الحقيقية للبحث (Vector Semantic Search) داخل قاعدة البيانات.
+    إذا وُجد lesson_number يبحث به أولاً.
     """
+    # الطريقة 1: بحث برقم الدرس مباشرة
+    if lesson_number:
+        try:
+            response = supabase.table("lessons").select("content, title").eq("lesson_number", lesson_number).limit(1).execute()
+            if response.data and len(response.data) > 0:
+                return response.data[0]['content']
+        except Exception as e:
+            print(f"⚠️ خطأ في البحث برقم الدرس: {e}")
+
+    # الطريقة 2: بحث بالمستوى
+    try:
+        response = supabase.table("lessons").select("content, title").eq("level", level).order("lesson_number").limit(limit).execute()
+        if response.data and len(response.data) > 0:
+            return response.data[0]['content']
+    except Exception as e:
+        print(f"⚠️ خطأ في البحث بالمستوى: {e}")
+
+    # الطريقة 3: RAG بالمتجهات
     query = f"درس برمجة فلاتر Flutter مناسب للطالب في المستوى رقم {level}"
     query_embedding = get_embedding(query)
-    
+
     if not query_embedding:
-        print("⚠️ لم نجد نظام Vectors (نقوم بالبحث العادي).")
-        response = supabase.table("lessons").select("content").eq("level", level).limit(limit).execute()
-        return response.data[0]['content'] if (response.data and len(response.data) > 0) else ""
-    
+        return ""
+
     try:
-        # استدعاء معادلة المتجهات RAG من Supabase SQL
         response = supabase.rpc("match_lessons", {
             "query_embedding": query_embedding,
-            "match_threshold": 0.1,    # للبحث عن الأقرب دائماً
+            "match_threshold": 0.1,
             "match_count": limit,
             "student_level": level
         }).execute()
-        
+
         if response.data and len(response.data) > 0:
-            return response.data[0]['content'] 
+            return response.data[0]['content']
     except Exception as e:
         print("Error with Supabase Vectors:", e)
-        
+
     return ""
+
+
+def get_next_lesson_number(phone_number: str) -> int:
+    """
+    يحسب رقم الدرس التالي للطالب بناءً على مستواه.
+    """
+    try:
+        user = supabase.table("students").select("level, lessons_completed").eq("phone_number", phone_number).execute()
+        if user.data and len(user.data) > 0:
+            completed = user.data[0].get("lessons_completed", 0)
+            return completed + 1
+    except:
+        pass
+    return 1
+
+
+def increment_lessons_completed(phone_number: str):
+    """
+    يزيد عداد الدروس المكتملة بـ 1.
+    """
+    try:
+        user = supabase.table("students").select("lessons_completed").eq("phone_number", phone_number).execute()
+        current = user.data[0].get("lessons_completed", 0) if user.data else 0
+        supabase.table("students").update({"lessons_completed": current + 1}).eq("phone_number", phone_number).execute()
+    except Exception as e:
+        print(f"Error incrementing lessons_completed: {e}")
 
 def get_or_create_user(phone_number: str, name: str = "Student"):
     """
