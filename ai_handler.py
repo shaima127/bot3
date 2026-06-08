@@ -70,19 +70,75 @@ def get_placement_test():
     return generate_ai_response(prompt)
 
 from database import retrieve_relevant_lesson
+import httpx
 
-def get_flutter_lesson(level: int):
-    # 1. جلب الدرس المخزن من قاعدة البيانات بواسطة RAG
-    db_lesson_content = retrieve_relevant_lesson(level)
-    
-    if db_lesson_content:
-        # 2. إعطاء الذكاء الاصطناعي محتوى الدرس ليقوم بصياغته بشكل محفز وأكاديمي
-        prompt = f"هذا هو محتوى الدرس من المنهج الخاص بي: \n'{db_lesson_content}'\n الرجاء صياغته وشرحه للطالب ذو المستوى {level} بأسلوب ممتع مع استخدام كلمات تشجيعية وعمل مثال كود (Gamification)."
-    else:
-        # في حال لم يتم العثور على درس في الداتا بيز (خطة بديلة)
-        prompt = f"أعطني درساً قصيراً لتعلم Flutter يناسب الطالب ذو المستوى {level}، مع مثال كود صغير ومبسط. استخدم Gamification بإضافة كلمات تشجيعية."
-        
+# ─── مواضيع Flutter الرسمية حسب رقم الدرس ───
+FLUTTER_DOC_TOPICS = {
+    1: "https://docs.flutter.dev/get-started/install",
+    2: "https://dart.dev/language",
+    3: "https://docs.flutter.dev/get-started/codelab",
+    4: "https://docs.flutter.dev/ui/widgets",
+    5: "https://docs.flutter.dev/ui/interactivity",
+    6: "https://docs.flutter.dev/cookbook/navigation/navigation-basics",
+    7: "https://docs.flutter.dev/cookbook/networking/fetch-data",
+}
+
+
+def fetch_from_flutter_docs(lesson_number: int) -> str:
+    """
+    يجلب معلومات من موقع Flutter الرسمي كخطة بديلة.
+    يحاول قراءة محتوى الصفحة وتلخيصه.
+    """
+    url = FLUTTER_DOC_TOPICS.get(lesson_number, "https://docs.flutter.dev/get-started/install")
+    try:
+        response = httpx.get(url, timeout=10.0, follow_redirects=True)
+        if response.status_code == 200:
+            # نأخذ أول 2000 حرف من الصفحة (نص خام)
+            import re
+            text = re.sub(r'<[^>]+>', ' ', response.text)  # إزالة HTML tags
+            text = re.sub(r'\s+', ' ', text).strip()
+            return text[:2000]
+    except Exception as e:
+        print(f"⚠️ فشل جلب من Flutter docs: {e}")
+    return ""
+
+
+def get_flutter_lesson(level: int, lesson_number: int = None):
+    """
+    1. يبحث في قاعدة البيانات أولاً (برقم الدرس أو المستوى)
+    2. إذا لم يجد → يجلب من موقع Flutter الرسمي
+    3. يصيغ المحتوى بأسلوب ممتع عبر الذكاء الاصطناعي
+    """
+    # الخطوة 1: البحث في قاعدة البيانات
+    db_lesson = retrieve_relevant_lesson(level, lesson_number=lesson_number)
+
+    if db_lesson:
+        prompt = (
+            f"هذا محتوى الدرس من المنهج:\n'{db_lesson}'\n\n"
+            f"صِغه للطالب (مستوى {level}) بأسلوب ممتع وتشجيعي مع أمثلة كود."
+        )
+        return generate_ai_response(prompt)
+
+    # الخطوة 2: جلب من موقع Flutter الرسمي
+    print(f"📡 الدرس غير موجود في الداتابيز — جاري البحث في موقع Flutter الرسمي...")
+    flutter_content = fetch_from_flutter_docs(lesson_number or level)
+
+    if flutter_content:
+        prompt = (
+            f"جلبت هذا المحتوى من موقع Flutter الرسمي:\n'{flutter_content}'\n\n"
+            f"حوّله إلى درس عربي ممتع للطالب (مستوى {level}). "
+            f"أضف أمثلة كود مبسطة وكلمات تشجيعية."
+        )
+        return generate_ai_response(prompt)
+
+    # الخطوة 3: خطة بديلة أخيرة — AI يولّد الدرس
+    prompt = (
+        f"أعطني درساً قصيراً لتعلم Flutter يناسب المستوى {level}، "
+        f"الدرس رقم {lesson_number or '؟'}. "
+        f"مع مثال كود مبسط وكلمات تشجيعية."
+    )
     return generate_ai_response(prompt)
+
 
 def get_lesson_quiz(lesson_topic: str):
     prompt = f"بناءً على موضوع '{lesson_topic}' في فلاتر، أعطني سؤالاً قصيراً جداً لتقييم فهم الطالب مع 3 خيارات."
@@ -95,3 +151,4 @@ def correct_code_and_explain(code: str, issue: str):
 def logic_to_code(logic_description: str):
     prompt = f"الطالب يطلب تحويل المنطق التالي إلى كود Flutter: \n{logic_description}\n يرجى كتابة الكود المناسب مع وضع شروحات داخل الكود (Comments)."
     return generate_ai_response(prompt)
+
