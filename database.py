@@ -12,7 +12,7 @@ def get_embedding(text: str) -> list:
     تحويل النص إلى متجهات (Embedding) لعمل RAG حقيقي.
     نستخدم نموذجاً مجانياً ومفتوحاً من HuggingFace.
     """
-    model_url = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
+    model_url = "https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2/pipeline/feature-extraction"
     
     headers = {}
     if hasattr(settings, "HUGGINGFACE_TOKEN") and settings.HUGGINGFACE_TOKEN:
