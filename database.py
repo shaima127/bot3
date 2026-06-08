@@ -71,19 +71,28 @@ def get_or_create_user(phone_number: str, name: str = "Student"):
         "name": name,
         "level": 0,
         "points": 0,
-        "current_state": "new"
+        "current_state": "new",
+        "last_lesson": ""
     }
     insert_response = supabase.table("students").insert(new_user).execute()
     return insert_response.data[0]
 
-def update_user_state(phone_number: str, new_state: str, level: int = None, points_to_add: int = 0):
+def update_user_state(phone_number: str, new_state: str, level: int = None, points_to_add: int = 0, last_lesson: str = None):
     update_data = {"current_state": new_state}
     if level is not None:
         update_data["level"] = level
-    
+    if last_lesson is not None:
+        update_data["last_lesson"] = last_lesson
+
     if points_to_add > 0:
         current_points = supabase.table("students").select("points").eq("phone_number", phone_number).execute().data[0]['points']
         update_data["points"] = current_points + points_to_add
 
     res = supabase.table("students").update(update_data).eq("phone_number", phone_number).execute()
     return res.data[0] if res.data else None
+
+def save_last_lesson(phone_number: str, lesson_text: str):
+    """
+    حفظ آخر درس تعلمه الطالب في قاعدة البيانات.
+    """
+    supabase.table("students").update({"last_lesson": lesson_text[:500]}).eq("phone_number", phone_number).execute()
